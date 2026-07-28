@@ -1,0 +1,65 @@
+data:
+  sample_rate: 4096         # Hz — LIGO native sampling rate
+  segment_length: 1.0       # seconds per window → 4096 samples
+  bandpass_low: 20          # Hz — low-frequency cut
+  bandpass_high: 500        # Hz — high-frequency cut
+  bandpass_order: 8
+  q_transform:
+    qrange: [4, 64]
+    frange: [20, 500]
+    logf: true              # logarithmic frequency axis
+    norm: "median"          # normalisation method
+  train_split: 0.70
+  val_split: 0.15
+  test_split: 0.15
+  data_dir: "data/raw"
+  processed_dir: "data/processed"
+  synthetic_dir: "data/synthetic"
+
+model:
+  name: "cnn_spectrogram"   # cnn_spectrogram | cnn_lstm | random_forest
+  num_classes: 3            # 0=BBH, 1=BNS, 2=Glitch
+  pretrained: true          # use ImageNet weights for ResNet backbone
+  dropout: 0.3
+  lstm_hidden: 256
+  lstm_layers: 2
+  cnn1d_channels: [64, 128, 256]
+
+training:
+  batch_size: 32
+  num_epochs: 50
+  learning_rate: 0.0001
+  weight_decay: 0.00001
+  scheduler: "cosine"       # cosine | step | none
+  patience: 10              # early-stopping patience (val loss)
+  min_delta: 0.0001
+  checkpoint_dir: "checkpoints"
+  log_dir: "logs"
+  use_smote: false          # SMOTE on training embeddings
+  seed: 42
+  num_workers: 4
+  pin_memory: true
+
+evaluation:
+  output_dir: "results"
+  far_threshold: 0.001      # false-alarm-rate threshold (events/s)
+
+classes:
+  names: ["BBH", "BNS", "Glitch"]
+  # inverse-frequency weights (noise dominates real data ~1000:1)
+  weights: [5.0, 8.0, 1.0]
+
+pycbc_waveforms:
+  bbh:
+    approximant: "IMRPhenomD"
+    mass1_range: [10, 80]    # solar masses
+    mass2_range: [10, 80]
+    spin1z_range: [-0.9, 0.9]
+    spin2z_range: [-0.9, 0.9]
+  bns:
+    approximant: "TaylorF2"
+    mass1_range: [1.0, 2.5]
+    mass2_range: [1.0, 2.5]
+    spin1z_range: [-0.05, 0.05]
+    spin2z_range: [-0.05, 0.05]
+  snr_range: [8, 30]

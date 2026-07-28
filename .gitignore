@@ -1,0 +1,24 @@
+# Data (too large for git)
+data/
+
+# Trained model weights
+results/
+*.pt
+*.pth
+*.ckpt
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+*.egg-info/
+
+# Mac
+.DS_Store
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Fix scripts (one-time use)
+fix*.py
