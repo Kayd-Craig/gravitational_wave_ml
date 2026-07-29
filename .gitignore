@@ -23,3 +23,5 @@ __pycache__/
 # Fix scripts (one-time use)
 fix*.py
 checkpoints/
+diagnose.py
+fix_*.py
