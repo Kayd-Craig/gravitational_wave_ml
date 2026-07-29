@@ -1,11 +1,14 @@
-# Data (too large for git)
+# Data directories (too large for git)
 data/
+data/raw/
+data/processed/
+data/synthetic/
+data/splits/
 
-# Trained model weights
+# Checkpoints and results
+checkpoints/
 results/
-*.pt
-*.pth
-*.ckpt
+logs/
 
 # Python
 __pycache__/
@@ -20,8 +23,6 @@ __pycache__/
 # Jupyter
 .ipynb_checkpoints/
 
-# Fix scripts (one-time use)
+# Fix scripts
 fix*.py
-checkpoints/
 diagnose.py
-fix_*.py
