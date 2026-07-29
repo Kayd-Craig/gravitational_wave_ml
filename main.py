@@ -151,7 +151,7 @@ def cmd_train(args: argparse.Namespace, cfg: dict) -> None:
 
     # ── Data ──────────────────────────────────────────────────────────────────
     mode = "spectrogram" if "cnn_spectrogram" in model_name else "timeseries"
-    splits_dir = Path(cfg["data"]["processed_dir"]) / "splits" / (mode + "s")
+    splits_dir = Path(cfg["data"]["processed_dir"]) / "splits" / ("spectrograms" if mode == "spectrogram" else "timeseries")
     dm = GWDataModule(splits_dir, cfg, mode=mode)
     dm.setup()
 
@@ -209,7 +209,7 @@ def cmd_evaluate(args: argparse.Namespace, cfg: dict) -> None:
     logging.getLogger().info("Loaded checkpoint: %s", ckpt_path)
 
     mode = "spectrogram" if "cnn_spectrogram" in model_name else "timeseries"
-    splits_dir = Path(cfg["data"]["processed_dir"]) / "splits" / (mode + "s")
+    splits_dir = Path(cfg["data"]["processed_dir"]) / "splits" / ("spectrograms" if mode == "spectrogram" else "timeseries")
     dm = GWDataModule(splits_dir, cfg, mode=mode)
     dm.setup()
     test_loader = dm.test_loader()
@@ -253,17 +253,79 @@ def cmd_gradcam(args: argparse.Namespace, cfg: dict) -> None:
 
 def cmd_train_rf(args: argparse.Namespace, cfg: dict) -> None:
     import numpy as np
-    from src.data.dataset import _collect_raw
+    from sklearn.model_selection import train_test_split
     from src.evaluation.metrics import print_classification_report
     from src.models.random_forest_baseline import GWRandomForest
 
-    splits_dir = Path(cfg["data"]["processed_dir"]) / "splits" / "timeseries"
-    X_train, y_train = _collect_raw(splits_dir / "train")
-    X_val, y_val = _collect_raw(splits_dir / "val")
-    X_test, y_test = _collect_raw(splits_dir / "test")
+    # Load raw strain directly from synthetic NPZ files
+    syn_dir = Path(cfg["data"]["synthetic_dir"])
+    file_label = [
+        ("bbh_injections.npz",    0),
+        ("bns_injections.npz",    1),
+        ("noise_backgrounds.npz", 2),
+    ]
+    # Build a reference PSD from the noise backgrounds (pure noise, no signal)
+    # This is how real LIGO analysis works: estimate noise floor from off-source data
+    from scipy.signal import welch
+    from src.data.preprocessing import bandpass_filter
+    noise_npz = syn_dir / "noise_backgrounds.npz"
+    ref_psd = None
+    ref_freqs = None
+    if noise_npz.exists():
+        noise_data = np.load(noise_npz)["data"].astype(np.float64)
+        fs_val = float(cfg["data"]["sample_rate"])
+        # Average Welch PSD over all noise segments for a stable estimate
+        psds = []
+        for seg in noise_data[:200]:  # 200 segments is plenty
+            seg_bp = bandpass_filter(seg, fs_val, 20.0, 500.0)
+            f, p = welch(seg_bp, fs=fs_val, nperseg=min(len(seg_bp), 512))
+            psds.append(p)
+        ref_freqs = f
+        ref_psd = np.mean(psds, axis=0)
+        logging.getLogger().info("Reference PSD estimated from %d noise segments", len(psds))
+
+    def whiten_with_ref(seg, fs_val, ref_freqs, ref_psd):
+        """Whiten using a pre-computed reference PSD (not the segment's own PSD)."""
+        seg = bandpass_filter(seg.astype(np.float64), fs_val, 20.0, 500.0)
+        n = len(seg)
+        rfft_freqs = np.fft.rfftfreq(n, d=1.0 / fs_val)
+        psd_interp = np.interp(rfft_freqs, ref_freqs.astype(np.float64),
+                               ref_psd.astype(np.float64))
+        asd = np.sqrt(np.maximum(psd_interp, 1e-100))
+        asd = np.maximum(asd, np.percentile(asd[asd > 0], 5))
+        Xf = np.fft.rfft(seg)
+        white = np.real(np.fft.irfft(Xf / asd, n=n))
+        return white
+
+    all_X, all_y = [], []
+    for fname, label in file_label:
+        p = syn_dir / fname
+        if not p.exists():
+            continue
+        npz = np.load(p)
+        strains = npz["data"].astype(np.float64)
+        fs_val = float(cfg["data"]["sample_rate"])
+        logging.getLogger().info("Whitening %s (%d samples)…", fname, len(strains))
+        if ref_psd is not None:
+            whitened = np.stack([whiten_with_ref(s, fs_val, ref_freqs, ref_psd)
+                                 for s in strains])
+        else:
+            whitened = strains
+        all_X.append(whitened)
+        all_y.append(np.full(len(strains), label, dtype=np.int64))
+
+    X = np.concatenate(all_X, axis=0)
+    y = np.concatenate(all_y, axis=0)
+    X = np.nan_to_num(X, nan=0.0, posinf=0.0, neginf=0.0)
+
+    # 70 / 15 / 15 split
+    seed = cfg["training"]["seed"]
+    X_tr, X_tmp, y_tr, y_tmp = train_test_split(X, y, test_size=0.30, stratify=y, random_state=seed)
+    X_val, X_test, y_val, y_test = train_test_split(X_tmp, y_tmp, test_size=0.50, stratify=y_tmp, random_state=seed)
+    logging.getLogger().info("Train=%d  Val=%d  Test=%d", len(y_tr), len(y_val), len(y_test))
 
     rf = GWRandomForest(cfg)
-    rf.fit(X_train, y_train, X_val, y_val)
+    rf.fit(X_tr, y_tr, X_val, y_val)
 
     y_pred = rf.predict(X_test)
     print_classification_report(y_test, y_pred, cfg["classes"]["names"])

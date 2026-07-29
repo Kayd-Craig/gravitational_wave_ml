@@ -211,9 +211,9 @@ def build_cnn_lstm(cfg: dict) -> CNNLSTM:
     model = CNNLSTM(
         input_len=input_len,
         num_classes=mcfg["num_classes"],
-        cnn_channels=mcfg.get("cnn1d_channels", [64, 128, 256]),
-        lstm_hidden=mcfg.get("lstm_hidden", 256),
-        lstm_layers=mcfg.get("lstm_layers", 2),
+        cnn_channels=mcfg.get("cnn_lstm", cfg.get("cnn_lstm", {})).get("cnn_channels", [32, 64, 128]),
+        lstm_hidden=cfg.get("cnn_lstm", {}).get("lstm_hidden", 64),
+        lstm_layers=cfg.get("cnn_lstm", {}).get("lstm_layers", 1),
         dropout=mcfg.get("dropout", 0.3),
     )
     log.info(

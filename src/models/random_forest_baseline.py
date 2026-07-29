@@ -49,6 +49,7 @@ def extract_features(segment: np.ndarray, fs: float) -> np.ndarray:
     -------
     features : 1-D float32 array of length ~20
     """
+    # NOTE: expects pre-whitened input (whitening done upstream with reference PSD)
     n = len(segment)
     x = segment.astype(np.float64)
 
@@ -131,8 +132,8 @@ def extract_features(segment: np.ndarray, fs: float) -> np.ndarray:
         freq_sweep,
         freq_trend,
         *band_ratios,          # 4 values
-    ], dtype=np.float32)
-
+    ], dtype=np.float64)
+    features = np.nan_to_num(features, nan=0.0, posinf=0.0, neginf=0.0)
     return features
 
 
