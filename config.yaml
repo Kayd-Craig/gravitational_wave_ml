@@ -1,53 +1,3 @@
-data:
-  sample_rate: 4096
-  segment_length: 1.0
-  bandpass_low: 20
-  bandpass_high: 500
-  bandpass_order: 8
-  q_transform:
-    qrange:
-    - 4
-    - 64
-    frange:
-    - 20
-    - 500
-    logf: true
-    norm: median
-  train_split: 0.7
-  val_split: 0.15
-  test_split: 0.15
-  data_dir: data/raw
-  processed_dir: data/processed
-  synthetic_dir: data/synthetic
-model:
-  name: cnn_spectrogram
-  num_classes: 3
-  pretrained: true
-  dropout: 0.3
-  lstm_hidden: 256
-  lstm_layers: 2
-  cnn1d_channels:
-  - 64
-  - 128
-  - 256
-training:
-  batch_size: 32
-  num_epochs: 50
-  learning_rate: 0.0001
-  weight_decay: 1.0e-05
-  scheduler: cosine
-  patience: 12
-  min_delta: 0.0001
-  checkpoint_dir: checkpoints
-  log_dir: logs
-  use_smote: false
-  seed: 42
-  num_workers: 4
-  pin_memory: true
-  lr: 0.0005
-evaluation:
-  output_dir: results
-  far_threshold: 0.001
 classes:
   names:
   - BBH
@@ -57,6 +7,49 @@ classes:
   - 5.0
   - 8.0
   - 1.0
+cnn_lstm:
+  cnn_channels:
+  - 32
+  - 64
+  - 128
+  dropout: 0.3
+  lstm_hidden: 64
+  lstm_layers: 1
+data:
+  bandpass_high: 500
+  bandpass_low: 20
+  bandpass_order: 8
+  data_dir: data/raw
+  processed_dir: data/processed
+  q_transform:
+    frange:
+    - 20
+    - 500
+    logf: true
+    norm: median
+    qrange:
+    - 4
+    - 64
+  sample_rate: 4096
+  segment_length: 4.0
+  synthetic_dir: data/synthetic
+  test_split: 0.15
+  train_split: 0.7
+  val_split: 0.15
+evaluation:
+  far_threshold: 0.001
+  output_dir: results
+model:
+  cnn1d_channels:
+  - 64
+  - 128
+  - 256
+  dropout: 0.3
+  lstm_hidden: 256
+  lstm_layers: 2
+  name: cnn_spectrogram
+  num_classes: 3
+  pretrained: true
 pycbc_waveforms:
   bbh:
     approximant: IMRPhenomD
@@ -89,11 +82,18 @@ pycbc_waveforms:
   snr_range:
   - 8
   - 30
-cnn_lstm:
-  cnn_channels:
-  - 32
-  - 64
-  - 128
-  lstm_hidden: 64
-  lstm_layers: 1
-  dropout: 0.3
+training:
+  batch_size: 32
+  checkpoint_dir: checkpoints
+  learning_rate: 0.0005
+  log_dir: logs
+  lr: 0.0005
+  min_delta: 0.0001
+  num_epochs: 50
+  num_workers: 4
+  patience: 12
+  pin_memory: true
+  scheduler: cosine
+  seed: 42
+  use_smote: false
+  weight_decay: 1.0e-05
