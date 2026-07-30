@@ -1,11 +1,9 @@
 classes:
   names:
-  - BBH
-  - BNS
-  - Glitch
+  - Signal
+  - Noise
   weights:
-  - 5.0
-  - 8.0
+  - 1.0
   - 1.0
 cnn_lstm:
   cnn_channels:

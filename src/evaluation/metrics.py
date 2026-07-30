@@ -188,7 +188,12 @@ def plot_roc_curves(
     colours = ["#2196F3", "#FF9800", "#4CAF50"]
 
     for i, (name, col) in enumerate(zip(class_names, colours)):
-        if y_bin[:, i].sum() == 0:
+            if y_proba.ndim == 1 or y_proba.shape[1] == 1:
+        yp = y_proba.ravel()
+        y_proba = np.column_stack([1 - yp, yp])
+    if y_bin.shape[1] == 1:
+        y_bin = np.hstack([1 - y_bin, y_bin])
+    if y_bin[:, i].sum() == 0:
             continue
         fpr, tpr, _ = roc_curve(y_bin[:, i], y_proba[:, i])
         auc = roc_auc_score(y_bin[:, i], y_proba[:, i])
@@ -224,7 +229,12 @@ def plot_pr_curves(
 
     fig, ax = plt.subplots(figsize=(8, 6))
     for i, (name, col) in enumerate(zip(class_names, colours)):
-        if y_bin[:, i].sum() == 0:
+            if y_proba.ndim == 1 or y_proba.shape[1] == 1:
+        yp = y_proba.ravel()
+        y_proba = np.column_stack([1 - yp, yp])
+    if y_bin.shape[1] == 1:
+        y_bin = np.hstack([1 - y_bin, y_bin])
+    if y_bin[:, i].sum() == 0:
             continue
         prec, rec, _ = precision_recall_curve(y_bin[:, i], y_proba[:, i])
         ap = average_precision_score(y_bin[:, i], y_proba[:, i])
@@ -289,7 +299,7 @@ def print_classification_report(
     print("\n" + "=" * 60)
     print("  CLASSIFICATION REPORT")
     print("=" * 60)
-    print(classification_report(y_true, y_pred, target_names=class_names, digits=4))
+    print(classification_report(y_true, y_pred, target_names=class_names, digits=4, labels=list(range(len(class_names)))))
 
     acc = accuracy_score(y_true, y_pred)
     f1_macro = f1_score(y_true, y_pred, average="macro", zero_division=0)
